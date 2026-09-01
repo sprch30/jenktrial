@@ -16,9 +16,9 @@ pipeline {
             steps {
                 echo "Triggering test automation suite running on target environment profile: ${params.ENV}"
                 
-                // We inject the URL and credentials directly here using conditions based on user selection
                 script {
-                    def targetUrl = (params.ENV == 'stage') ? 'https://herokuapp.com' : 'https://herokuapp.com'
+                    // FIXED: Added the correct 'the-internet.' subdomain prefix to both profiles
+                    def targetUrl = (params.ENV == 'stage') ? 'https://the-internet.herokuapp.com' : 'https://the-internet.herokuapp.com'
                     def targetUser = 'tomsmith'
                     def targetPass = 'SuperSecretPassword!'
                     
