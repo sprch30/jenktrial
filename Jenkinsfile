@@ -1,11 +1,6 @@
 pipeline {
     agent any 
 
-    // This block tells Jenkins to automatically configure the NodeJS 26 tool you just added
-    tools {
-        nodejs 'NodeJS'
-    }
-
     parameters {
         choice(name: 'ENV', choices: ['stage', 'prod'], description: 'Select target automation profile for execution')
     }
@@ -17,19 +12,11 @@ pipeline {
             }
         }
 
-        stage('Build System Environment') {
-            steps {
-                echo "Restoring Node package binaries..."
-                bat 'npm ci'
-                echo "Installing Playwright Chrome automated browser binary engines..."
-                bat 'npx playwright install chromium'
-            }
-        }
-
         stage('Automation Execution Suite') {
             steps {
                 echo "Triggering test automation suite running on target environment profile: ${params.ENV}"
-                bat "npx cross-env ENV=${params.ENV} playwright test"
+                // Adding the --headed flag or running directly ensures it leverages local system assets without asking questions
+                bat "npx cross-env ENV=${params.ENV} npx playwright test --project=chromium"
             }
         }
     }
