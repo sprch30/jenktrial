@@ -15,23 +15,16 @@ pipeline {
         stage('Automation Execution Suite') {
             steps {
                 echo "Triggering test automation suite running on target environment profile: ${params.ENV}"
-                // Adding the --headed flag or running directly ensures it leverages local system assets without asking questions
-                bat "npx cross-env ENV=${params.ENV} npx playwright test --project=chromium"
+                
+                // We inject the URL and credentials directly here using conditions based on user selection
+                script {
+                    def targetUrl = (params.ENV == 'stage') ? 'https://herokuapp.com' : 'https://herokuapp.com'
+                    def targetUser = 'tomsmith'
+                    def targetPass = 'SuperSecretPassword!'
+                    
+                    bat "npx cross-env ENV=${params.ENV} URL=${targetUrl} USER=${targetUser} PASS=${targetPass} npx playwright test --project=chromium"
+                }
             }
-        }
-    }
-
-    post {
-        always {
-            echo "Archiving execution run artifacts for QA review..."
-            publishHTML(target: [
-                allowMissing: false,
-                alwaysLinkToLastBuild: true,
-                keepAll: true,
-                reportDir: 'playwright-report',
-                reportFiles: 'index.html',
-                reportName: 'Playwright Run HTML Report'
-            ])
         }
     }
 }
