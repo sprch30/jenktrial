@@ -9,12 +9,6 @@ pipeline {
         choice(name: 'ENV', choices: ['stage', 'prod'], description: 'Select target automation profile for execution')
     }
 
-    environment {
-        // 1. SECURE CREDENTIAL HANDLING
-        // This dynamically pulls the secret text 'qa-login-pass' you just saved in the UI
-        SECURE_PASS = credentials('qa-login-pass')
-    }
-
     stages {
         stage('Pull Code Sources') {
             steps {
@@ -25,12 +19,17 @@ pipeline {
         stage('Automation Execution Suite') {
             steps {
                 echo "Triggering test automation suite running on target environment profile: ${params.ENV}"
-                script {
-                    def targetUrl = 'https://herokuapp.com'
-                    def targetUser = 'tomsmith'
-                    
-                    // Injected secure variables are completely masked as '****' in the execution logs!
-                    bat "npx cross-env ENV=${params.ENV} URL=${targetUrl} USER=${targetUser} PASS=${SECURE_PASS} npx playwright test --project=chromium"
+                
+                // Securely read your 'qa-login-pass' secret from Jenkins UI without warnings
+                withCredentials([string(credentialsId: 'qa-login-pass', variable: 'SECURE_PASSWORD')]) {
+                    script {
+                        // EXPLICIT URL: https://herokuapp.com
+                        def targetUrl = 'https://the-internet.herokuapp.com'
+                        def targetUser = 'tomsmith'
+                        
+                        // Pass the variables cleanly into your cross-env string
+                        bat "npx cross-env ENV=${params.ENV} URL=${targetUrl} USER=${targetUser} PASS=${env.SECURE_PASSWORD} npx playwright test --project=chromium"
+                    }
                 }
             }
         }
@@ -38,8 +37,7 @@ pipeline {
 
     post {
         always {
-            echo "2. VIEWING REPORTS: Archiving Playwright report directly inside Jenkins UI..."
-            // This displays your HTML index.html results page directly on the Jenkins sidebar
+            echo "Archiving execution run artifacts for QA review..."
             publishHTML(target: [
                 allowMissing: false,
                 alwaysLinkToLastBuild: true,
@@ -49,17 +47,17 @@ pipeline {
                 reportName: 'Playwright Run Report'
             ])
         }
-        
-        // 3. AUTOMATIC EMAIL NOTIFICATION ONLY ON FAILURE
+
+        // FAILURE EMAIL NOTIFICATION BLOCK
         failure {
-            echo "Automation suite failed! Dispatched automated failure alert with report attachments..."
+            echo "Test suite failed! Sending automated failure alert email..."
             emailext (
-                subject: "🚨 ALERT: Playwright Test Automation Failure - Build #${env.BUILD_NUMBER}",
+                subject: "🚨 ALERT: Playwright Automation Failure - Build #${env.BUILD_NUMBER}",
                 body: """<h3>Playwright Test Suite Regression Failure Alert</h3>
                          <p><b>Target Environment:</b> ${params.ENV}</p>
                          <p><b>Build Status:</b> ${currentBuild.currentResult}</p>
-                         <p>Review full console stack traces here: ${env.BUILD_URL}console</p>""",
-                to: 'shikha.qa@yourcompany.com',
+                         <p>Review console logs here: ${env.BUILD_URL}console</p>""",
+                to: 'sprch.10@gmail.com',
                 attachmentsPattern: 'playwright-report/**/*.*'
             )
         }
